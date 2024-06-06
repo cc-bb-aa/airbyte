@@ -4,7 +4,7 @@
 
 from typing import Any, Dict, List, Literal, Optional, Union
 
-import dpath
+import dpath.util
 from airbyte_cdk.utils.oneof_option_config import OneOfOptionConfig
 from airbyte_cdk.utils.spec_schema_transformations import resolve_refs
 from pydantic import BaseModel, Field
@@ -159,6 +159,26 @@ class OpenAICompatibleEmbeddingConfigModel(BaseModel):
         description = "Use a service that's compatible with the OpenAI API to embed text."
         discriminator = "mode"
 
+class OllamaEmbeddingConfigModel(BaseModel):
+    mode: Literal["ollama"] = Field("ollama", const=True)
+    base_url: str = Field(
+        ..., title="Base URL", description="The base URL for your Ollama service", examples=["https://ollama2.sweve.ai"]
+    )
+    model_name: str = Field(
+        title="Model name",
+        description="The name of the model to use for embedding",
+        default="qwen:4b",
+        examples=["qwen:4b"],
+    )
+    dimensions: int = Field(
+        title="Embedding dimensions", description="The number of dimensions the embedding model is generating", examples=[1536, 384]
+    )
+
+    class Config(OneOfOptionConfig):
+        title = "Ollama"
+        description = "Use a service that's compatible with Ollama to embed text."
+        discriminator = "mode"
+
 
 class AzureOpenAIEmbeddingConfigModel(BaseModel):
     mode: Literal["azure_openai"] = Field("azure_openai", const=True)
@@ -241,6 +261,7 @@ class VectorDBConfigModel(BaseModel):
         FakeEmbeddingConfigModel,
         AzureOpenAIEmbeddingConfigModel,
         OpenAICompatibleEmbeddingConfigModel,
+        OllamaEmbeddingConfigModel
     ] = Field(..., title="Embedding", description="Embedding configuration", discriminator="mode", group="embedding", type="object")
     processing: ProcessingConfigModel
     omit_raw_text: bool = Field(
@@ -264,7 +285,7 @@ class VectorDBConfigModel(BaseModel):
     @staticmethod
     def remove_discriminator(schema: Dict[str, Any]) -> None:
         """pydantic adds "discriminator" to the schema for oneOfs, which is not treated right by the platform as we inline all references"""
-        dpath.delete(schema, "properties/**/discriminator")
+        dpath.util.delete(schema, "properties/**/discriminator")
 
     @classmethod
     def schema(cls, by_alias: bool = True, ref_template: str = "") -> Dict[str, Any]:

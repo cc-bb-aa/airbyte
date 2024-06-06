@@ -3,9 +3,8 @@
 #
 
 
-import logging
 from typing import Any, Iterable, Mapping
-
+import logging
 from airbyte_cdk.destinations import Destination
 from airbyte_cdk.destinations.vector_db_based.document_processor import DocumentProcessor
 from airbyte_cdk.destinations.vector_db_based.embedder import Embedder, create_from_config

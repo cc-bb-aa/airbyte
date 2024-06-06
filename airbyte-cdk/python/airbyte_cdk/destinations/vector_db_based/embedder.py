@@ -14,6 +14,7 @@ from airbyte_cdk.destinations.vector_db_based.config import (
     FromFieldEmbeddingConfigModel,
     OpenAICompatibleEmbeddingConfigModel,
     OpenAIEmbeddingConfigModel,
+    OllamaEmbeddingConfigModel,
     ProcessingConfigModel,
 )
 from airbyte_cdk.destinations.vector_db_based.utils import create_chunks, format_exception
@@ -23,6 +24,7 @@ from langchain.embeddings.cohere import CohereEmbeddings
 from langchain.embeddings.fake import FakeEmbeddings
 from langchain.embeddings.localai import LocalAIEmbeddings
 from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain.embeddings.ollama import OllamaEmbeddings
 
 
 @dataclass
@@ -100,10 +102,48 @@ class BaseOpenAIEmbedder(Embedder):
         # vector size produced by text-embedding-ada-002 model
         return OPEN_AI_VECTOR_SIZE
 
+class BaseOllamaEmbedder(Embedder):
+    def __init__(self, embeddings: OllamaEmbeddings, chunk_size: int):
+        super().__init__()
+        self.embeddings = embeddings
+        self.chunk_size = chunk_size
+
+    def check(self) -> Optional[str]:
+        try:
+            self.embeddings.embed_query("test")
+        except Exception as e:
+            return format_exception(e)
+        return None
+
+    def embed_documents(self, documents: List[Document]) -> List[Optional[List[float]]]:
+        """
+        Embed the text of each chunk and return the resulting embedding vectors.
+
+        As the OpenAI API will fail if more than the per-minute limit worth of tokens is sent at once, we split the request into batches and embed each batch separately.
+        It's still possible to run into the rate limit between each embed call because the available token budget hasn't recovered between the calls,
+        but the built-in retry mechanism of the OpenAI client handles that.
+        """
+        # Each chunk can hold at most self.chunk_size tokens, so tokens-per-minute by maximum tokens per chunk is the number of documents that can be embedded at once without exhausting the limit in a single request
+        embedding_batch_size = OPEN_AI_TOKEN_LIMIT // self.chunk_size
+        batches = create_chunks(documents, batch_size=embedding_batch_size)
+        embeddings: List[Optional[List[float]]] = []
+        for batch in batches:
+            embeddings.extend(self.embeddings.embed_documents([chunk.page_content for chunk in batch]))
+        return embeddings
+
+    @property
+    def embedding_dimensions(self) -> int:
+        # vector size produced by text-embedding-ada-002 model
+        ### TODO: SS!!!
+        return 4096
 
 class OpenAIEmbedder(BaseOpenAIEmbedder):
     def __init__(self, config: OpenAIEmbeddingConfigModel, chunk_size: int):
         super().__init__(OpenAIEmbeddings(openai_api_key=config.openai_key, max_retries=15, disallowed_special=()), chunk_size)  # type: ignore
+
+class OllamaEmbedder(BaseOllamaEmbedder):
+    def __init__(self, config: OllamaEmbeddingConfigModel, chunk_size: int):
+        super().__init__(OllamaEmbeddings(model="llama3:8b"), chunk_size)  # type: ignore
 
 
 class AzureOpenAIEmbedder(BaseOpenAIEmbedder):
@@ -156,7 +196,6 @@ class FakeEmbedder(Embedder):
     def embedding_dimensions(self) -> int:
         # use same vector size as for OpenAI embeddings to keep it realistic
         return OPEN_AI_VECTOR_SIZE
-
 
 CLOUD_DEPLOYMENT_MODE = "cloud"
 
@@ -240,6 +279,7 @@ embedder_map = {
     "azure_openai": AzureOpenAIEmbedder,
     "from_field": FromFieldEmbedder,
     "openai_compatible": OpenAICompatibleEmbedder,
+    "ollama": OllamaEmbedder,
 }
 
 
@@ -251,11 +291,12 @@ def create_from_config(
         FromFieldEmbeddingConfigModel,
         OpenAIEmbeddingConfigModel,
         OpenAICompatibleEmbeddingConfigModel,
+        OllamaEmbeddingConfigModel,
     ],
     processing_config: ProcessingConfigModel,
 ) -> Embedder:
 
-    if embedding_config.mode == "azure_openai" or embedding_config.mode == "openai":
+    if embedding_config.mode == "azure_openai" or embedding_config.mode == "openai" or embedding_config.mode == "ollama":
         return cast(Embedder, embedder_map[embedding_config.mode](embedding_config, processing_config.chunk_size))
     else:
         return cast(Embedder, embedder_map[embedding_config.mode](embedding_config))

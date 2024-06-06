@@ -9,10 +9,11 @@ from .config import (
     FromFieldEmbeddingConfigModel,
     OpenAICompatibleEmbeddingConfigModel,
     OpenAIEmbeddingConfigModel,
+    OllamaEmbeddingConfigModel,
     ProcessingConfigModel,
 )
 from .document_processor import Chunk, DocumentProcessor
-from .embedder import CohereEmbedder, Embedder, FakeEmbedder, OpenAIEmbedder
+from .embedder import CohereEmbedder, Embedder, FakeEmbedder, OpenAIEmbedder, OllamaEmbedder
 from .indexer import Indexer
 from .writer import Writer
 
@@ -33,6 +34,8 @@ __all__ = [
     "OpenAICompatibleEmbeddingConfigModel",
     "OpenAIEmbedder",
     "OpenAIEmbeddingConfigModel",
+    "OllamaEmbedder",
+    "OllamaEmbeddingConfigModel",
     "ProcessingConfigModel",
     "Writer",
 ]

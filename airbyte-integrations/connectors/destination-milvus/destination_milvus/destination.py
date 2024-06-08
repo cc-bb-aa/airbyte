@@ -4,8 +4,7 @@
 
 
 from typing import Any, Iterable, Mapping
-
-from airbyte_cdk import AirbyteLogger
+import logging
 from airbyte_cdk.destinations import Destination
 from airbyte_cdk.destinations.vector_db_based.document_processor import DocumentProcessor
 from airbyte_cdk.destinations.vector_db_based.embedder import Embedder, create_from_config
@@ -37,7 +36,7 @@ class DestinationMilvus(Destination):
         )
         yield from writer.write(configured_catalog, input_messages)
 
-    def check(self, logger: AirbyteLogger, config: Mapping[str, Any]) -> AirbyteConnectionStatus:
+    def check(self, logger: logging.Logger, config: Mapping[str, Any]) -> AirbyteConnectionStatus:
         parsed_config = ConfigModel.parse_obj(config)
         self._init_indexer(parsed_config)
         checks = [self.embedder.check(), self.indexer.check(), DocumentProcessor.check_config(parsed_config.processing)]

@@ -20,6 +20,7 @@ include = "destination_milvus"
 python = "^3.9,<3.12"
 airbyte-cdk = {version = "0.81.6", extras = ["vector-db-based"]}
 pymilvus = "2.3.0"
+jwt = "1.3.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.2"

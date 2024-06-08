@@ -159,6 +159,26 @@ class OpenAICompatibleEmbeddingConfigModel(BaseModel):
         description = "Use a service that's compatible with the OpenAI API to embed text."
         discriminator = "mode"
 
+class OllamaEmbeddingConfigModel(BaseModel):
+    mode: Literal["ollama"] = Field("ollama", const=True)
+    base_url: str = Field(
+        ..., title="Base URL", description="The base URL for your Ollama service", examples=["https://ollama2.sweve.ai"]
+    )
+    model_name: str = Field(
+        title="Model name",
+        description="The name of the model to use for embedding",
+        default="qwen:4b",
+        examples=["qwen:4b"],
+    )
+    dimensions: int = Field(
+        title="Embedding dimensions", description="The number of dimensions the embedding model is generating", examples=[1536, 384]
+    )
+
+    class Config(OneOfOptionConfig):
+        title = "Ollama"
+        description = "Use a service that's compatible with Ollama to embed text."
+        discriminator = "mode"
+
 
 class AzureOpenAIEmbeddingConfigModel(BaseModel):
     mode: Literal["azure_openai"] = Field("azure_openai", const=True)
@@ -241,6 +261,7 @@ class VectorDBConfigModel(BaseModel):
         FakeEmbeddingConfigModel,
         AzureOpenAIEmbeddingConfigModel,
         OpenAICompatibleEmbeddingConfigModel,
+        OllamaEmbeddingConfigModel
     ] = Field(..., title="Embedding", description="Embedding configuration", discriminator="mode", group="embedding", type="object")
     processing: ProcessingConfigModel
     omit_raw_text: bool = Field(
